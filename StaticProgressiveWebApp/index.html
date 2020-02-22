@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Task Share</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Task Share">
+  <link rel="apple-touch-icon" href="/icon-152x152.png">
+  <meta name="description" content="DevOps Academy Training Application for task sharing">
+  <meta name="theme-color" content="#2F3BA2" />
+
+  <script>
+    var appConfig = {
+      apiBaseUrl: 'https://[yourAzureFunctionName].azurewebsites.net',
+      authProvider: 'aad', // aad, twitter, microsoftaccount, google, facebook
+
+      AddNewTask: "https://[yourAzureFunctionName].azurewebsites.net/api/AddNewTask?code=[yourcode]",
+      DeleteTask: "https://[yourAzureFunctionName].azurewebsites.net/api/DeleteTask?code=[yourcode]",
+      GetMyTasks: "https://[yourAzureFunctionName].azurewebsites.net/api/GetMyTasks?code=[yourcode]",
+      UpdateTask: "https://[yourAzureFunctionName].azurewebsites.net/api/UpdateTask?code=[yourcode]"
+    }
+  </script>
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+    integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  <style>
+    .hidden {
+      visibility: collapse
+    }
+
+    .visible {
+      visibility: visible
+    }
+
+    a.navbar-brand {
+      white-space: normal;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    html {
+      font-size: 14px;
+    }
+
+    @media (min-width: 768px) {
+      html {
+        font-size: 16px;
+      }
+    }
+
+    .box-shadow {
+      box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05);
+    }
+
+    .TextStyle {
+      flex: 0 0 auto;
+      text-align: left;
+      color: rgb(51, 51, 51);
+      line-height: 27.93px;
+      overflow: hidden;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 21px;
+      font-weight: 600;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      box-sizing: border-box;
+    }
+
+    .NoteStyle {
+      text-align: right;
+      flex: 0 0 auto;
+      color: rgba(51, 51, 51, 0.933333);
+      line-height: 18.62px;
+      overflow: hidden;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      box-sizing: border-box;
+    }
+
+    .mainTable,
+    .newItemTable {
+      width: 90%;
+    }
+  </style>
+</head>
+
+<body>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bluebird/3.3.4/bluebird.min.js" class="pre"></script>
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js" class="pre"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+    integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+    integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+    crossorigin="anonymous"></script>
+  <script src="date.format.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@0.18.0/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/timeago.js@3.0.2/dist/timeago.min.js"></script>
+
+  <div id="app" class="container">
+    <header>
+      <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <div class="container">
+          <a class="navbar-brand">Task Share</a>
+          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse"
+            aria-label="Toggle navigation" v-on:click.prevent="toggle">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="navbar-collapse collapse d-sm-inline-flex flex-sm-row-reverse">
+            <ul class="navbar-nav" v-if="authenticated">
+              <li class="nav-item">
+                <a class="nav-link text-dark" title="Manage">{{username}}</a>
+              </li>
+              <li class="nav-item">
+                <img src="/logout.png" v-on:click.prevent="logout()">
+              </li>
+            </ul>
+            <ul class="navbar-nav" v-if="!authenticated">
+              <li class="nav-item">
+                <img src="/login.png" v-on:click.prevent="login()">
+              </li>
+            </ul>
+            <ul class="navbar-nav flex-grow" id="menu">
+              <li class="nav-item">
+                <img src="/refresh.png" v-on:click.prevent="refresh()">
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <noscript>
+      Java Script is needed to use this Application. <br />
+      Icons by <a href="https://www.icons8.com/">Icons 8</a>
+    </noscript>
+    <div align="center">
+      <table class="mainTable" v-for="task in tasks" v-bind:key="task.RowKey">
+        <tr>
+          <td style="width: 50px;">
+            <img v-if="task.Done === null" src="/open.png" v-on:click.prevent="complete(task)">
+            <img v-if="task.Done !== null" src="/done.png" v-on:click.prevent="undo(task)">
+          </td>
+          <td class="TextStyle"> {{task.Text}} </td>
+          <!-- <td style="width: 50px;"><img src="/edit.png" v-on:click.prevent="edit(task)"></td> -->
+          <td style="width: 50px;"><img src="/del.png" v-on:click.prevent="remove(task)"></td>
+        </tr>
+        <tr>
+          <td colspan="4" class="NoteStyle"> {{task.CreatorName}}</td>
+        </tr>
+        <tr>
+          <td colspan="4" class="NoteStyle"> Added on: {{task.Added | formatDate}}</td>
+        </tr>
+        <tr v-if="task.Done !== null">
+          <td colspan="4" class="NoteStyle"> Done on: {{task.Done | formatDate}}</td>
+        </tr>
+      </table>
+      <hr />
+      <table class="newItemTable">
+        <tr>
+          <td style="width: 50px;"> </td>
+          <td class="TextStyle"> New Item Text: </td>
+          <td style="width: 50px;"> </td>
+        </tr>
+        <tr>
+          <td style="width: 50px;"><img src="/done.png"></td>
+          <td class="TextStyle"><textarea v-model="newTask" class="form-control" rows="5"></textarea></td>
+          <td style="width: 50px;"><img src="/save.png" v-on:click.prevent="newItem"></td>
+        </tr>
+        <tr>
+          <td style="width: 50px;"> </td>
+          <td class="TextStyle"> Target: </td>
+          <td style="width: 50px;"> </td>
+        </tr>
+        <tr>
+          <td style="width: 50px;"> </td>
+          <td class="NoteStyle">
+            <select class="form-control" v-model="newTarget" style="width: 100%;">
+              <option v-for="target in targets" v-bind:value="target.QueueName">{{ target.TargetName }}</option>
+            </select>
+          </td>
+          <td style="width: 50px;"> </td>
+        </tr>
+      </table>
+
+      <footer>
+        Icons by <a href="https://www.icons8.com/">Icons 8</a>
+      </footer>
+
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    // Register service worker.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((reg) => {
+            console.log('Service worker registered.', reg);
+          });
+      });
+    }
+    const axiosConfig = {
+      withCredentials: true
+    };
+
+    Vue.filter('formatDate', function (value) {
+      if (value) {
+        return (new Date(value)).format('dd/mm/yyyy hh:mm')
+      }
+    });
+
+    const app = new Vue({
+      el: '#app',
+      data: function () {
+        return {
+          authenticated: false,
+          menu: false,
+          token: '',
+          isLocalhost: /\/\/localhost/.test(appConfig.apiBaseUrl),
+          username: '',
+          newTask: '',
+          newTarget: '',
+          tasks: [],
+          targets: [],
+          ready: false,
+          loginUrl: `${appConfig.apiBaseUrl}/.auth/login/${appConfig.authProvider}?post_login_redirect_url=${encodeURIComponent(window.location.href)}`,
+          logoutUrl: `${appConfig.apiBaseUrl}/.auth/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.href)}`
+        };
+      },
+      mounted: function () {
+        return this.getAuthInfo().then(function () {
+          if (this.isLocalhost || this.authenticated) {
+            this.ready = true;
+          }
+        }.bind(this));
+      },
+      methods: {
+        toggle: function () {
+          this.toggle = !this.toggle;
+        },
+        login: function () {
+          window.location.href = this.loginUrl;
+        },
+        logout: function () {
+          window.location.href = this.logoutUrl;
+        },
+        selectImage: function (name) {
+          return "/" + name + ".png";
+        },
+        refresh: function () {
+          return axios.get(`${appConfig.GetMyTasks}`, { headers: { Authorization: this.token } })
+            .then((res) => {
+              this.tasks = res.data.t;
+              this.targets = res.data.s;
+            }, () => null);
+        },
+        newItem: function () {
+          return axios.post(`${appConfig.AddNewTask}`, {
+            text: this.newTask,
+            queue: this.newTarget
+          }, { headers: { Authorization: this.token } })
+            .then((res) => {
+              if (res.data === "Task added") {
+                this.refresh();
+              }
+            }, () => null);
+        },
+        complete: function (task) {
+          task.Done = (new Date()).format("yyyy-mm-dd'T'HH:MM:ss'Z'");
+          return axios.post(`${appConfig.UpdateTask}`, task, { headers: { Authorization: this.token } })
+            .then((res) => {
+              if (res.data === "Task updated") {
+                this.refresh();
+              }
+            }, () => null);
+        },
+        undo: function (task) {
+          task.Done = null;
+          return axios.post(`${appConfig.UpdateTask}`, task, { headers: { Authorization: this.token } })
+            .then((res) => {
+              if (res.data === "Task updated") {
+                this.refresh();
+              }
+            }, () => null);
+        },
+        remove: function (task) {
+          return axios.post(`${appConfig.DeleteTask}`, task, { headers: { Authorization: this.token } })
+            .then((res) => {
+              if (res.data === "Task deleted") {
+                this.refresh();
+              }
+            }, () => null);
+        },
+        getAuthInfo: function () {
+          return axios.post(`${appConfig.apiBaseUrl}/.auth/me`, null, axiosConfig)
+            .then((res) => {
+              this.token = 'Bearer '.concat(res.data[0].id_token);
+              this.username = this.getClaim(res.data[0].user_claims, 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname') + ' ' +
+                this.getClaim(res.data[0].user_claims, 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname');
+              this.authenticated = true;
+              this.refresh();
+            }, () => null);
+        },
+        getClaim: function (claims, name) {
+          var result = '';
+          claims.forEach((claim, i) => {
+            if (claim.typ === name) {
+              result = claim.val;
+            }
+          });
+          return result;
+        }
+      }
+    });
+  </script>
+</body>
+
+</html>
